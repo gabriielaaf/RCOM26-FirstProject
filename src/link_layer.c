@@ -8,6 +8,11 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#define SET 0x03
+#define UA 0x07
+
+
+
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
 #define BUF_SIZE 256
@@ -15,12 +20,28 @@
 ////////////////////////////////////////////////
 // LLOPEN
 ////////////////////////////////////////////////
+
+static int sendSupervisionFrame(unsigned char address, unsigned char control) {
+
+    unsigned char buf[4] = {0};
+
+
+    unsigned char flag = 0x7E;
+
+    buf[0] = flag;
+    buf[1] = address;
+    buf[2] = control;
+    buf[3] = buf[1]^buf[2];
+   
+    int bytes = writeBytesSerialPort(buf, BUF_SIZE);
+    printf("%d bytes written to serial port\n", bytes);
+
+    sleep(1);
+
+}
+
 int llOpenTx(LinkLayer llParameters)
 {
-    // ----------------------------------------------------
-    // This example code shows how to open the serial port and send a string.
-    // TODO: Adapt and extend this code according to the specifications of the project.
-    // ----------------------------------------------------
 
     if (openSerialPort(llParameters.serialPort, llParameters.baudRate) < 0)
     {
@@ -30,24 +51,6 @@ int llOpenTx(LinkLayer llParameters)
 
     printf("Serial port %s opened\n", llParameters.serialPort);
 
-    // Create string to send
-    unsigned char buf[BUF_SIZE] = {0};
-
-    for (int i = 0; i < BUF_SIZE; i++)
-    {
-        buf[i] = 'a' + i % 26;
-    }
-
-    // In non-canonical mode, '\n' does not end the writing.
-    // Test this condition by placing a '\n' in the middle of the buffer.
-    // The whole buffer must be sent even with the '\n'.
-    buf[5] = '\n';
-
-    int bytes = writeBytesSerialPort(buf, BUF_SIZE);
-    printf("%d bytes written to serial port\n", bytes);
-
-    // Wait until all bytes have been written to the serial port
-    sleep(1);
 
     // Close serial port
     if (closeSerialPort() < 0)
