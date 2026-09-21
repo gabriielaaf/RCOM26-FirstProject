@@ -33,12 +33,11 @@ static int sendSupervisionFrame(unsigned char address, unsigned char control) {
 
   int bytes = writeBytesSerialPort(buf, 5);
 
-  if (bytes == -1)
-    return _POSIX_SOURCE;
+  if (bytes != 5)
+    return -1;
 
   printf("%d bytes written to serial port\n", bytes);
 
-  sleep(1);
 
   return bytes;
 }
@@ -93,7 +92,15 @@ int llOpenTx(LinkLayer llParameters) {
 
   printf("Serial port %s opened\n", llParameters.serialPort);
 
-  if (sendSupervisionFrame(0x03,SET) == -1) return -1;
+  if (sendSupervisionFrame(0x03,SET) == -1){
+    closeSerialPort();
+    return -1;
+  }
+
+  if (readSupervisionFrame(0x03,UA,5) == -1){
+    closeSerialPort();
+    return -1;
+  }
 
 
 
@@ -109,11 +116,7 @@ int llOpenTx(LinkLayer llParameters) {
 }
 
 int llOpenRx(LinkLayer llParameters) {
-  // ----------------------------------------------------
-  // This example code shows how to open the serial port and receive a string.
-  // TODO: Adapt and extend this code according to the specifications of the
-  // project.
-  // ----------------------------------------------------
+
 
   if (openSerialPort(llParameters.serialPort, llParameters.baudRate) < 0) {
     perror("openSerialPort");
@@ -122,35 +125,17 @@ int llOpenRx(LinkLayer llParameters) {
 
   printf("Serial port %s opened\n", llParameters.serialPort);
 
-  // Read from serial port until the 'z' char is received.
 
-  // NOTE: This while() cycle is a simple example showing how to read from the
-  // serial port. It must be changed in order to respect the specifications of
-  // the protocol indicated in the Lab guide.
-
-  // TODO: Save the received bytes in a buffer array and print it at the end of
-  // the program.
-  volatile int STOP = FALSE;
-  int nBytesBuf = 0;
-
-  while (STOP == FALSE) {
-    // Read one byte from serial port.
-    // NOTE: You must check how many bytes were actually read by reading the
-    // return value. In this example, we assume that the byte is always read,
-    // which may not be true.
-    unsigned char byte;
-    int bytes = readByteSerialPort(&byte);
-    nBytesBuf += bytes;
-
-    printf("Byte received: %c\n", byte);
-
-    if (byte == 'z') {
-      printf("Received 'z' char. Stop reading from serial port.\n");
-      STOP = TRUE;
-    }
+  if (readSupervisionFrame(0x03,SET,5) == -1){
+    closeSerialPort();
+    return -1;
   }
 
-  printf("Total bytes received: %d\n", nBytesBuf);
+  if (sendSupervisionFrame(0x03,UA) == -1){
+    closeSerialPort();
+    return -1;
+  }
+
 
   // Close serial port
   if (closeSerialPort() < 0) {
