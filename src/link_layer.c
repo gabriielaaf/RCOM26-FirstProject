@@ -15,12 +15,19 @@
 ////////////////////////////////////////////////
 // LLOPEN
 ////////////////////////////////////////////////
+
+static void createBuffer(unsigned char flag, unsigned char address, unsigned char control, unsigned char (*buf)[5])
+{
+
+    (*buf)[0] = flag;
+    (*buf)[1] = address;
+    (*buf)[2] = control;
+    (*buf)[3] = (*buf)[1] ^ (*buf)[2];
+    (*buf)[4] = flag;
+}
+
 int llOpenTx(LinkLayer llParameters)
 {
-    // ----------------------------------------------------
-    // This example code shows how to open the serial port and send a string.
-    // TODO: Adapt and extend this code according to the specifications of the project.
-    // ----------------------------------------------------
 
     if (openSerialPort(llParameters.serialPort, llParameters.baudRate) < 0)
     {
@@ -30,24 +37,37 @@ int llOpenTx(LinkLayer llParameters)
 
     printf("Serial port %s opened\n", llParameters.serialPort);
 
-    // Create string to send
-    unsigned char buf[BUF_SIZE] = {0};
+    unsigned char buf[5];
 
-    for (int i = 0; i < BUF_SIZE; i++)
-    {
-        buf[i] = 'a' + i % 26;
-    }
+    createBuffer(0x7E, 0x03, 0x03, &buf);
 
-    // In non-canonical mode, '\n' does not end the writing.
-    // Test this condition by placing a '\n' in the middle of the buffer.
-    // The whole buffer must be sent even with the '\n'.
-    buf[5] = '\n';
+    // 7E0303007E
 
-    int bytes = writeBytesSerialPort(buf, BUF_SIZE);
+    int bytes = writeBytesSerialPort(buf, 5);
     printf("%d bytes written to serial port\n", bytes);
 
     // Wait until all bytes have been written to the serial port
     sleep(1);
+
+    unsigned char response[5];
+
+    for (int i = 0; i < 5;)
+    {
+
+        unsigned char byte;
+        int bytes = readByteSerialPort(&byte);
+        if (bytes != 1)
+            continue;
+
+        response[i] = byte;
+
+        i++;
+    }
+
+    if (!((response[0] == 0x7E) && (response[1] == 0x03) && (response[2] == 0x07) && (response[3] == (response[1] ^ response[2])) && (response[4] == 0x7E)))
+    {
+        return -1;
+    }
 
     // Close serial port
     if (closeSerialPort() < 0)
@@ -63,10 +83,6 @@ int llOpenTx(LinkLayer llParameters)
 
 int llOpenRx(LinkLayer llParameters)
 {
-    // ----------------------------------------------------
-    // This example code shows how to open the serial port and receive a string.
-    // TODO: Adapt and extend this code according to the specifications of the project.
-    // ----------------------------------------------------
 
     if (openSerialPort(llParameters.serialPort, llParameters.baudRate) < 0)
     {
@@ -76,34 +92,31 @@ int llOpenRx(LinkLayer llParameters)
 
     printf("Serial port %s opened\n", llParameters.serialPort);
 
-    // Read from serial port until the 'z' char is received.
 
-    // NOTE: This while() cycle is a simple example showing how to read from the serial port.
-    // It must be changed in order to respect the specifications of the protocol indicated in the Lab guide.
+    unsigned char response[5];
 
-    // TODO: Save the received bytes in a buffer array and print it at the end of the program.
-    volatile int STOP = FALSE;
-    int nBytesBuf = 0;
-
-    while (STOP == FALSE)
+    for (int i = 0; i < 5;)
     {
-        // Read one byte from serial port.
-        // NOTE: You must check how many bytes were actually read by reading the return value.
-        // In this example, we assume that the byte is always read, which may not be true.
+
         unsigned char byte;
         int bytes = readByteSerialPort(&byte);
-        nBytesBuf += bytes;
+        if (bytes != 1)
+            continue;
 
-        printf("Byte received: %c\n", byte);
+        response[i] = byte;
 
-        if (byte == 'z')
-        {
-            printf("Received 'z' char. Stop reading from serial port.\n");
-            STOP = TRUE;
-        }
+        i++;
     }
 
-    printf("Total bytes received: %d\n", nBytesBuf);
+    if (!((response[0] == 0x7E) && (response[1] == 0x03) && (response[2] == 0x03) && (response[3] == (response[1] ^ response[2])) && (response[4] == 0x7E)))
+    {
+        return -1;
+    }
+
+    unsigned char buf[5];
+    createBuffer(0x7E, 0x03, 0x07, &buf);
+    writeBytesSerialPort(buf, 5);
+
 
     // Close serial port
     if (closeSerialPort() < 0)
