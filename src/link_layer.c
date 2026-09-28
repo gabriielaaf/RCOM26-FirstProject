@@ -107,7 +107,7 @@ int llOpenRx(LinkLayer llParameters) {
 
   printf("Serial port %s opened\n", llParameters.serialPort);
 
-  if (readSupervisionFrame(0x03, SET, 5) == -1) {
+  if (readSupervisionFrame(0x03, SET) == -1) {
     closeSerialPort();
     return -1;
   }
