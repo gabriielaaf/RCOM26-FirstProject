@@ -5,9 +5,9 @@
 #include "link_layer.h"
 #include "serial_port.h"
 
+#include "alarm_action.h"
 #include <stdio.h>
 #include <unistd.h>
-
 #define SET 0x03
 #define UA 0x07
 
@@ -64,7 +64,6 @@ static int readSupervisionFrame(unsigned char senderAddress,
     return 0;
   }
 
-
   return -1;
 }
 
@@ -82,15 +81,32 @@ int llOpenTx(LinkLayer llParameters) {
     return -1;
   }
 
-  if (readSupervisionFrame(0x03, UA) == -1) {
-    closeSerialPort();
-    return -1;
+  configureAlarm();
+
+  int r = FALSE;
+
+  for (int _ = 0; _ < 3; _++) {
+    startAlarm(3);
+
+    while (isAlarmEnabled) {
+      if (readSupervisionFrame(0x03, UA) == 0) {
+        stopAlarm();
+        r = TRUE;
+      }
+    }
+
+    if (r)
+      break;
   }
 
-  // Close serial port
-  if (closeSerialPort() < 0) {
-    perror("closeSerialPort");
-    return -1;
+  if (!r) {
+    printf("Coudlnt recieve UA\n");
+    if (closeSerialPort() < 0) {
+      perror("closeSerialPort");
+      return -1;
+    }
+  } else {
+    printf("Successfully read UA\n");
   }
 
   printf("Serial port %s closed\n", llParameters.serialPort);
@@ -107,10 +123,11 @@ int llOpenRx(LinkLayer llParameters) {
 
   printf("Serial port %s opened\n", llParameters.serialPort);
 
-  if (readSupervisionFrame(0x03, SET) == -1) {
-    closeSerialPort();
-    return -1;
-  }
+
+  do {
+
+  } while (readSupervisionFrame(0x03, SET) == -1);
+  
 
   if (sendSupervisionFrame(0x03, UA) == -1) {
     closeSerialPort();
