@@ -38,49 +38,34 @@ static int sendSupervisionFrame(unsigned char address, unsigned char control) {
 
   printf("%d bytes written to serial port\n", bytes);
 
-
   return bytes;
 }
 
+static int readSupervisionFrame(unsigned char senderAddress,
+                                unsigned char senderControl) {
 
-static int readSupervisionFrame(unsigned char senderAddress, unsigned char senderControl,int max_attempts){
+  unsigned char response[5];
+  int flag = 0x7E;
 
-    unsigned char response[5];
-    int flag = 0x7E;
-    int attempts = 0;
-    do {
+  for (int i = 0; i < 5;) {
+    int result = readByteSerialPort(&response[i]);
 
-        unsigned char failed = FALSE;
+    if (result < 0) {
+      return -1;
+    }
 
-        for (int i = 0; i<5;){
-            int result = readByteSerialPort(&response[i]);
+    if (result == 1)
+      i++;
+  }
 
-            if (result < 0){
-                failed = TRUE;
-                break;
-            }
+  if (response[0] == flag && response[4] == flag &&
+      response[1] == senderAddress && response[2] == senderControl &&
+      response[3] == (response[1] ^ response[2])) {
+    return 0;
+  }
 
-            if (result == 1) i++;
 
-        }
-
-        if (failed){
-            attempts++;
-            continue;
-        }
-
-        
-
-        if (response[0] == flag && response[4] == flag && response[1] == senderAddress && response[2] == senderControl && response[3] == (response[1]^response[2])) {
-            return 0;
-        }
-
-        attempts++;
-
-    } while (attempts < max_attempts);
-
-    return -1;
-
+  return -1;
 }
 
 int llOpenTx(LinkLayer llParameters) {
@@ -92,17 +77,15 @@ int llOpenTx(LinkLayer llParameters) {
 
   printf("Serial port %s opened\n", llParameters.serialPort);
 
-  if (sendSupervisionFrame(0x03,SET) == -1){
+  if (sendSupervisionFrame(0x03, SET) == -1) {
     closeSerialPort();
     return -1;
   }
 
-  if (readSupervisionFrame(0x03,UA,5) == -1){
+  if (readSupervisionFrame(0x03, UA) == -1) {
     closeSerialPort();
     return -1;
   }
-
-
 
   // Close serial port
   if (closeSerialPort() < 0) {
@@ -117,7 +100,6 @@ int llOpenTx(LinkLayer llParameters) {
 
 int llOpenRx(LinkLayer llParameters) {
 
-
   if (openSerialPort(llParameters.serialPort, llParameters.baudRate) < 0) {
     perror("openSerialPort");
     return -1;
@@ -125,17 +107,15 @@ int llOpenRx(LinkLayer llParameters) {
 
   printf("Serial port %s opened\n", llParameters.serialPort);
 
-
-  if (readSupervisionFrame(0x03,SET,5) == -1){
+  if (readSupervisionFrame(0x03, SET, 5) == -1) {
     closeSerialPort();
     return -1;
   }
 
-  if (sendSupervisionFrame(0x03,UA) == -1){
+  if (sendSupervisionFrame(0x03, UA) == -1) {
     closeSerialPort();
     return -1;
   }
-
 
   // Close serial port
   if (closeSerialPort() < 0) {
