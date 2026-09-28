@@ -76,16 +76,16 @@ int llOpenTx(LinkLayer llParameters) {
 
   printf("Serial port %s opened\n", llParameters.serialPort);
 
-  if (sendSupervisionFrame(0x03, SET) == -1) {
-    closeSerialPort();
-    return -1;
-  }
-
   configureAlarm();
 
   int r = FALSE;
 
   for (int _ = 0; _ < 3; _++) {
+
+    if (sendSupervisionFrame(0x03, SET) == -1) {
+      closeSerialPort();
+      return -1;
+    }
     startAlarm(3);
 
     while (isAlarmEnabled) {
@@ -123,11 +123,9 @@ int llOpenRx(LinkLayer llParameters) {
 
   printf("Serial port %s opened\n", llParameters.serialPort);
 
-
   do {
 
   } while (readSupervisionFrame(0x03, SET) == -1);
-  
 
   if (sendSupervisionFrame(0x03, UA) == -1) {
     closeSerialPort();
