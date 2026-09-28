@@ -4,6 +4,7 @@
 
 #include "link_layer.h"
 #include "serial_port.h"
+#include "alarm_action.h"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -51,22 +52,41 @@ int llOpenTx(LinkLayer llParameters)
 
     unsigned char response[5];
 
-    for (int i = 0; i < 5;)
+    int check = FALSE;
+
+    for (int i = 0; i < 3; i++)
     {
 
-        unsigned char byte;
-        int bytes = readByteSerialPort(&byte);
-        if (bytes != 1)
-            continue;
+        startAlarm(3);
 
-        response[i] = byte;
+        while (isAlarmEnabled())
+        {
 
-        i++;
-    }
+            for (int i = 0; i < 5;)
+            {
 
-    if (!((response[0] == 0x7E) && (response[1] == 0x03) && (response[2] == 0x07) && (response[3] == (response[1] ^ response[2])) && (response[4] == 0x7E)))
-    {
-        return -1;
+                unsigned char byte;
+                int bytes = readByteSerialPort(&byte);
+                if (bytes != 1)
+                    continue;
+
+                response[i] = byte;
+
+                i++;
+            }
+
+            if (((response[0] == 0x7E) && (response[1] == 0x03) && (response[2] == 0x07) && (response[3] == (response[1] ^ response[2])) && (response[4] == 0x7E)))
+            {
+                stopAlarm();
+                check = TRUE;
+            }
+        }
+
+        if (check)
+        {
+            printf("Sucessed!");
+            break;
+        }
     }
 
     // Close serial port
@@ -92,7 +112,6 @@ int llOpenRx(LinkLayer llParameters)
 
     printf("Serial port %s opened\n", llParameters.serialPort);
 
-
     unsigned char response[5];
 
     for (int i = 0; i < 5;)
@@ -116,7 +135,6 @@ int llOpenRx(LinkLayer llParameters)
     unsigned char buf[5];
     createBuffer(0x7E, 0x03, 0x07, &buf);
     writeBytesSerialPort(buf, 5);
-
 
     // Close serial port
     if (closeSerialPort() < 0)
