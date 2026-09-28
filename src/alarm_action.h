@@ -9,6 +9,10 @@ extern int alarmCount;
 
 void configureAlarm(void);
 
+void startAlarm(unsigned int seconds);
+
+void stopAlarm(void);
+
 int isAlarmEnabled(void);
 
 #endif
