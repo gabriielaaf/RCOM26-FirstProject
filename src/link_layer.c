@@ -52,7 +52,7 @@ static int readSupervisionFrame(unsigned char senderAddress, unsigned char sende
 
   do {
 
-    readByteSerialPort(&byte);
+    result = readByteSerialPort(&byte);
 
     state = nextState(state,byte,senderAddress,senderControl);
 
