@@ -54,7 +54,7 @@ static int readSupervisionFrame(unsigned char senderAddress, unsigned char sende
 
     result = readByteSerialPort(&byte);
 
-    state = nextState(state,byte,senderAddress,senderControl);
+    if (result == 1) state = nextState(state,byte,senderAddress,senderControl);
 
     if (state == STOP) return 0;
 
