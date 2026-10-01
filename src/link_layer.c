@@ -4,12 +4,13 @@
 
 #include "link_layer.h"
 #include "serial_port.h"
-
+#include "state.h"
 #include "alarm_action.h"
 #include <stdio.h>
 #include <unistd.h>
 #define SET 0x03
 #define UA 0x07
+
 
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
@@ -41,28 +42,25 @@ static int sendSupervisionFrame(unsigned char address, unsigned char control) {
   return bytes;
 }
 
-static int readSupervisionFrame(unsigned char senderAddress,
-                                unsigned char senderControl) {
+static int readSupervisionFrame(unsigned char senderAddress, unsigned char senderControl) {
 
-  unsigned char response[5];
-  int flag = 0x7E;
+  unsigned char byte;
 
-  for (int i = 0; i < 5;) {
-    int result = readByteSerialPort(&response[i]);
+  int result;
 
-    if (result < 0) {
-      return -1;
-    }
+  State state = START;
 
-    if (result == 1)
-      i++;
-  }
+  do {
 
-  if (response[0] == flag && response[4] == flag &&
-      response[1] == senderAddress && response[2] == senderControl &&
-      response[3] == (response[1] ^ response[2])) {
-    return 0;
-  }
+    readByteSerialPort(&byte);
+
+    nextState(state,byte,senderAddress,senderControl);
+
+    if (state == STOP) return 0;
+
+    if (state == INVALID) return -1;
+
+  } while (result  == 1);
 
   return -1;
 }
@@ -80,7 +78,7 @@ int llOpenTx(LinkLayer llParameters) {
 
   int r = FALSE;
 
-  for (int _ = 0; _ < 3; _++) {
+  for (int _ = 0; _ < 4; _++) {
 
     if (sendSupervisionFrame(0x03, SET) == -1) {
       closeSerialPort();
