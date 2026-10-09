@@ -86,7 +86,7 @@ int llOpenTx(LinkLayer llParameters) {
     }
     startAlarm(3);
 
-    while (isAlarmEnabled) {
+    while (isAlarmEnabled()) {
       if (readSupervisionFrame(0x03, UA) == 0) {
         stopAlarm();
         r = TRUE;
@@ -101,13 +101,10 @@ int llOpenTx(LinkLayer llParameters) {
     printf("Coudlnt recieve UA\n");
     if (closeSerialPort() < 0) {
       perror("closeSerialPort");
-      return -1;
     }
-  } else {
-    printf("Successfully read UA\n");
+    return -1;
   }
 
-  printf("Serial port %s closed\n", llParameters.serialPort);
 
   return 0;
 }
@@ -125,6 +122,8 @@ int llOpenRx(LinkLayer llParameters) {
 
   } while (readSupervisionFrame(0x03, SET) == -1);
 
+
+
   if (sendSupervisionFrame(0x03, UA) == -1) {
     closeSerialPort();
     return -1;
@@ -136,7 +135,6 @@ int llOpenRx(LinkLayer llParameters) {
     return -1;
   }
 
-  printf("Serial port %s closed\n", llParameters.serialPort);
 
   return 0;
 }
