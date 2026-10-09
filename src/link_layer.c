@@ -78,13 +78,13 @@ int llOpenTx(LinkLayer llParameters) {
 
   int r = FALSE;
 
-  for (int _ = 0; _ < 4; _++) {
+  for (int _ = 0; _ <= llParameters.nRetransmissions; _++) {
 
     if (sendSupervisionFrame(0x03, SET) == -1) {
       closeSerialPort();
       return -1;
     }
-    startAlarm(3);
+    startAlarm(llParameters.timeout);
 
     while (isAlarmEnabled()) {
       if (readSupervisionFrame(0x03, UA) == 0) {
@@ -129,11 +129,7 @@ int llOpenRx(LinkLayer llParameters) {
     return -1;
   }
 
-  // Close serial port
-  if (closeSerialPort() < 0) {
-    perror("closeSerialPort");
-    return -1;
-  }
+
 
 
   return 0;
