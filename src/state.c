@@ -1,8 +1,10 @@
 #define FLAG 0x7E
 #include "state.h"
 
-SupervisionState nextSupervisionState(SupervisionState currentState, unsigned char byte,
-                unsigned char expectedAddress, unsigned char expectedControl) {
+SupervisionState nextSupervisionState(SupervisionState currentState,
+                                      unsigned char byte,
+                                      unsigned char expectedAddress,
+                                      unsigned char expectedControl) {
 
   switch (currentState) {
   case START:
@@ -61,5 +63,68 @@ SupervisionState nextSupervisionState(SupervisionState currentState, unsigned ch
     return INVALID;
 
     break;
+  }
+}
+
+InformationState nextInformationState(InformationState currentState,
+                                      unsigned char byte,
+                                      unsigned char expectedAddress,
+                                      unsigned char expectedControl) {
+
+  switch (currentState) {
+
+  case I_START:
+
+    if (byte == FLAG)
+      return I_FLAG_RCV;
+
+    return I_START;
+
+  case I_FLAG_RCV:
+
+    if (byte == FLAG)
+      return I_FLAG_RCV;
+
+    if (byte == expectedAddress)
+      return I_A_RCV;
+
+    return I_START;
+
+  case I_A_RCV:
+
+    if (byte == FLAG)
+      return I_FLAG_RCV;
+
+    if (byte == expectedControl)
+      return I_C_RCV;
+
+    return I_START;
+
+  case I_C_RCV:
+
+    if (byte == (expectedAddress ^ expectedControl))
+      return I_BCC_OK;
+
+    if (byte == FLAG)
+      return I_FLAG_RCV;
+
+    return I_START;
+
+  case I_BCC_OK:
+
+    if (byte == FLAG)
+      return I_FLAG_RCV;
+
+    return I_DATA_RCV;
+
+  case I_DATA_RCV:
+
+    if (byte == FLAG)
+      return I_STOP;
+
+    return I_DATA_RCV;
+
+  default:
+    return I_INVALID;
   }
 }
