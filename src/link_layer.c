@@ -42,23 +42,24 @@ static int sendSupervisionFrame(unsigned char address, unsigned char control) {
   return bytes;
 }
 
-static int readSupervisionFrame(unsigned char senderAddress, unsigned char senderControl) {
+static int readSupervisionFrame(unsigned char senderAddress, unsigned char senderControl, SupervisionState* state) {
 
   unsigned char byte;
 
   int result;
 
-  State state = START;
+  
+
 
   do {
 
     result = readByteSerialPort(&byte);
 
-    if (result == 1) state = nextState(state,byte,senderAddress,senderControl);
+    if (result == 1) *state = nextSupervisionState(state,byte,senderAddress,senderControl);
 
-    if (state == STOP) return 0;
+    if (*state == STOP) return 0;
 
-    if (state == INVALID) return -1;
+    if (*state == INVALID) return -1;
 
   } while (result  == 1);
 
@@ -86,8 +87,10 @@ int llOpenTx(LinkLayer llParameters) {
     }
     startAlarm(llParameters.timeout);
 
+    SupervisionState state = START;
+
     while (isAlarmEnabled()) {
-      if (readSupervisionFrame(0x03, UA) == 0) {
+      if (readSupervisionFrame(0x03, UA, &state) == 0) {
         stopAlarm();
         r = TRUE;
       }
@@ -118,9 +121,11 @@ int llOpenRx(LinkLayer llParameters) {
 
   printf("Serial port %s opened\n", llParameters.serialPort);
 
+  SupervisionState state = START;
+
   do {
 
-  } while (readSupervisionFrame(0x03, SET) == -1);
+  } while (readSupervisionFrame(0x03, SET, &state) == -1);
 
 
 

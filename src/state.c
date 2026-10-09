@@ -1,7 +1,7 @@
 #define FLAG 0x7E
 #include "state.h"
 
-State nextState(State currentState, unsigned char byte,
+SupervisionState nextSupervisionState(SupervisionState currentState, unsigned char byte,
                 unsigned char expectedAddress, unsigned char expectedControl) {
 
   switch (currentState) {
