@@ -461,7 +461,7 @@ int llCloseTx() {
     return -1;
   }
 
-  return 0;
+  return closeSerialPort();
 }
 
 int llCloseRx() {
