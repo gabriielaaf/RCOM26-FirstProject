@@ -369,8 +369,8 @@ int llReceive(unsigned char *packet) {
       continue;
     }
 
-    int deStuffedSize = byteDestuffing(frame, frameSize, deStuffed,
-                                       sizeof(deStuffed));
+    int deStuffedSize =
+        byteDestuffing(frame, frameSize, deStuffed, sizeof(deStuffed));
     unsigned char rej = (expectedNs == 0 ? REJ0 : REJ1);
 
     if (deStuffedSize < 1) {
@@ -412,7 +412,54 @@ int llReceive(unsigned char *packet) {
 // LLCLOSE
 ////////////////////////////////////////////////
 int llCloseTx() {
-  // TODO: Implement this function
+
+  configureAlarm();
+
+  unsigned char control;
+
+  int r = 0;
+
+  for (int _ = 0; _ <= txRetransmissions; _++) {
+
+    if (sendSupervisionFrame(0x03, DISC) < 0) {
+      return -1;
+    }
+
+    startAlarm(txTimeout);
+    SupervisionState state = START;
+
+    while (isAlarmEnabled()) {
+
+      int result = readSupervisionFrame(0x01, &control, &state);
+
+      if (result == 0) {
+
+        if (control == DISC) {
+          stopAlarm();
+          r = 1;
+          break;
+        }
+
+        state = START;
+      } else if (result == -2) {
+        stopAlarm();
+        closeSerialPort();
+        return -1;
+      }
+    }
+
+    if (r) break;
+
+  }
+
+  if (!r) {
+
+    printf("Coudlnt recieve DISC\n");
+    if (closeSerialPort() < 0) {
+      perror("closeSerialPort");
+    }
+    return -1;
+  }
 
   return 0;
 }
