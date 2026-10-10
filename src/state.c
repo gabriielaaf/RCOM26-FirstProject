@@ -4,7 +4,7 @@
 SupervisionState nextSupervisionState(SupervisionState currentState,
                                       unsigned char byte,
                                       unsigned char expectedAddress,
-                                      unsigned char expectedControl) {
+                                      unsigned char *control) {
 
   switch (currentState) {
   case START:
@@ -30,16 +30,14 @@ SupervisionState nextSupervisionState(SupervisionState currentState,
     if (byte == FLAG)
       return FLAG_RCV;
 
-    if (byte == expectedControl)
-      return C_RCV;
-
-    return START;
+    *control = byte;
+    return C_RCV;
 
     break;
 
   case C_RCV:
 
-    if (byte == (expectedAddress ^ expectedControl))
+    if (byte == (expectedAddress ^ *control))
       return BCC_OK;
 
     if (byte == FLAG)
@@ -69,7 +67,7 @@ SupervisionState nextSupervisionState(SupervisionState currentState,
 InformationState nextInformationState(InformationState currentState,
                                       unsigned char byte,
                                       unsigned char expectedAddress,
-                                      unsigned char expectedControl) {
+                                      unsigned char *control) {
 
   switch (currentState) {
 
@@ -95,14 +93,16 @@ InformationState nextInformationState(InformationState currentState,
     if (byte == FLAG)
       return I_FLAG_RCV;
 
-    if (byte == expectedControl)
+    if (byte == 0x00 || byte == 0x40) {
+      *control = byte;
       return I_C_RCV;
+    }
 
     return I_START;
 
   case I_C_RCV:
 
-    if (byte == (expectedAddress ^ expectedControl))
+    if (byte == (expectedAddress ^ *control))
       return I_BCC_OK;
 
     if (byte == FLAG)
