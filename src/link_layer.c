@@ -17,8 +17,12 @@
 
 static unsigned char expectedNs = 0;
 static unsigned char txNs = 0;
+
 static unsigned int txTimeout = 0;
 static int txRetransmissions = 0;
+
+static unsigned int rxTimeout = 0;
+static int rxRetransmissions = 0;
 
 ////////////////////////////////////////////////
 // LLOPEN
@@ -262,6 +266,8 @@ int llOpenRx(LinkLayer llParameters) {
   }
 
   expectedNs = 0;
+  rxRetransmissions = llParameters.nRetransmissions;
+  rxTimeout = llParameters.timeout;
 
   return 0;
 }
@@ -448,8 +454,8 @@ int llCloseTx() {
       }
     }
 
-    if (r) break;
-
+    if (r)
+      break;
   }
 
   if (!r) {
@@ -461,11 +467,72 @@ int llCloseTx() {
     return -1;
   }
 
+  if (sendSupervisionFrame(0x01, UA) < 0) {
+    closeSerialPort();
+    return -1;
+  }
+
   return closeSerialPort();
 }
 
 int llCloseRx() {
-  // TODO: Implement this function
 
-  return 0;
+  unsigned char control = 0;
+  SupervisionState state = START;
+
+  configureAlarm();
+
+  while (1) {
+
+    int result = readSupervisionFrame(0x03, &control, &state);
+
+    if (result == 0) {
+
+      if (control == DISC)
+        break;
+
+      state = START;
+
+    } else if (result == -2) {
+      closeSerialPort();
+      return -1;
+    }
+  }
+
+  for (int attempt = 0; attempt <= rxRetransmissions; attempt++) {
+
+    if (sendSupervisionFrame(0x01, DISC) < 0) {
+      closeSerialPort();
+      return -1;
+    }
+
+    startAlarm(rxTimeout);
+
+    state = START;
+
+    while (isAlarmEnabled()) {
+
+      int result = readSupervisionFrame(0x01, &control, &state);
+
+      if (result == 0) {
+
+        if (control == UA) {
+          stopAlarm();
+          return closeSerialPort();
+        }
+
+        state = START;
+
+      } else if (result == -2) {
+        stopAlarm();
+        closeSerialPort();
+        return -1;
+      }
+    }
+
+    stopAlarm();
+  }
+
+  closeSerialPort();
+  return -1;
 }
