@@ -93,6 +93,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     unsigned char dataPacket[MAX_PAYLOAD_SIZE];
 
     size_t bytesRead;
+    size_t totalSent = 0;
 
     // Read and send the entire file
     while ((bytesRead = fread(data, 1, sizeof(data), file)) > 0) {
@@ -110,12 +111,33 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             break;
         }
 
+        totalSent += bytesRead;
+
         printf("DATA packet sent successfully! (%zu bytes)\n", bytesRead);
     }
 
     // Check for file reading errors
     if (ferror(file)) {
         perror("Error reading file");
+    }
+
+    printf("Total bytes sent: %zu\n", totalSent);
+
+    // Send END packet only if the entire file was sent
+    
+    if (!ferror(file) && totalSent == (size_t)fileSize) {
+
+        // Reuse the START packet, changing only its control field
+        packet[0] = PACKET_END;
+
+        if (llSend(packet, packetSize) < 0) {
+            printf("Error sending END packet\n");
+        } else {
+            printf("END packet sent successfully!\n");
+        }
+
+    } else {
+        printf("Transfer incomplete: END packet not sent\n");
     }
 
     fclose(file);
@@ -148,6 +170,11 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             printf("Invalid START packet\n");
 
         } else {
+
+            // Save START packet to compare with END
+            unsigned char startPacket[MAX_PAYLOAD_SIZE];
+
+            memcpy(startPacket, packet, packetSize);
 
             // Get file size from START packet
             unsigned long fileSize = 0;
@@ -213,8 +240,22 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 }
 
                 if (!error) {
-                    printf("File received successfully!\n");
-                    printf("Total bytes received: %lu\n", totalReceived);
+
+                    int endPacketSize = llReceive(packet);
+
+                    if (endPacketSize != packetSize ||
+                        endPacketSize < 1 ||
+                        packet[0] != PACKET_END ||
+                        memcmp(packet + 1, startPacket + 1, packetSize - 1) != 0) {
+
+                        printf("Invalid or missing END packet\n");
+                        error = 1;
+
+                    } else {
+                        printf("END packet received successfully!\n");
+                        printf("File received successfully!\n");
+                        printf("Total bytes received: %lu\n", totalReceived);
+                    }
                 }
             }
         }
