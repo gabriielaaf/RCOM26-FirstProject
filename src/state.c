@@ -93,7 +93,7 @@ InformationState nextInformationState(InformationState currentState,
     if (byte == FLAG)
       return I_FLAG_RCV;
 
-    if (byte == 0x00 || byte == 0x40) {
+    if (byte == 0x00 || byte == 0x80) {
       *control = byte;
       return I_C_RCV;
     }

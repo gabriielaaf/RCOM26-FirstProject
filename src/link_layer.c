@@ -325,7 +325,7 @@ int llSend(const unsigned char *buf, int bufSize) {
     unsigned char control = 0;
 
     while (isAlarmEnabled()) {
-      int result = readSupervisionFrame(0x01, &control, &state);
+      int result = readSupervisionFrame(0x03, &control, &state);
 
       if (result == -2) {
         stopAlarm();
@@ -370,12 +370,12 @@ int llReceive(unsigned char *packet) {
     if (frameSize < 0)
       return -1;
 
-    unsigned char recievedNs = ((control >> 6) & 1);
+    unsigned char recievedNs = ((control >> 7) & 1);
 
     if (recievedNs != expectedNs) {
       unsigned char rr = (expectedNs == 0 ? RR0 : RR1);
 
-      if (sendSupervisionFrame(0x01, rr) <= 0)
+      if (sendSupervisionFrame(0x03, rr) <= 0)
         return -1;
 
       continue;
@@ -386,7 +386,7 @@ int llReceive(unsigned char *packet) {
     unsigned char rej = (expectedNs == 0 ? REJ0 : REJ1);
 
     if (deStuffedSize < 1) {
-      if (sendSupervisionFrame(0x01, rej) <= 0)
+      if (sendSupervisionFrame(0x03, rej) <= 0)
         return -1;
 
       continue;
@@ -398,7 +398,7 @@ int llReceive(unsigned char *packet) {
       calculateBCC2 ^= deStuffed[i];
 
     if (calculateBCC2 != deStuffed[deStuffedSize - 1]) {
-      if (sendSupervisionFrame(0x01, rej) <= 0)
+      if (sendSupervisionFrame(0x03, rej) <= 0)
         return -1;
 
       continue;
@@ -413,7 +413,7 @@ int llReceive(unsigned char *packet) {
 
     unsigned char rr = (expectedNs == 0 ? RR0 : RR1);
 
-    if (sendSupervisionFrame(0x01, rr) <= 0)
+    if (sendSupervisionFrame(0x03, rr) <= 0)
       return -1;
 
     return packetSize;
