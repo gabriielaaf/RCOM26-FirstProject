@@ -5,71 +5,11 @@
 #include "application_layer.h"
 #include "link_layer.h"
 
+#include "packets.h"
 #include "packet_values.h"
 
 #include <stdio.h>
 #include <string.h>
-
-int byteSize(unsigned long num) {
-  int numBytes = sizeof(unsigned long) - 1;
-
-  while (numBytes > 0 && ((num >> (numBytes * 8)) & 0x0FF) == 0){
-    numBytes--;
-  }
-
-  return numBytes + 1;
-}
-
-int buildControlPacket(unsigned char *packet,
-                       unsigned char control, const char *filename,
-                       long fileSize) {
-
-  int numBytes = byteSize(fileSize);
-
-  packet[0] = control;
-
-  packet[1] = FILE_SIZE;
-
-  packet[2] = numBytes;
-
-  for (int i = 0; i < numBytes; i++) {
-
-    packet[i + 3] = ((fileSize >> (numBytes - i - 1) * 8) & 0x0FF);
-  }
-
-  int offset = 3 + numBytes;
-
-  packet[offset++] = FILE_NAME;
-
-  int nameLength = strlen(filename);
-
-  packet[offset++] = nameLength;
-
-  memcpy(packet + offset, filename, nameLength);
-
-  offset += nameLength;
-
-  return offset;
-}
-
-int buildDataPacket(unsigned char *packet,unsigned char *data, long dataSize) {
-
-    unsigned char L1 = (dataSize & 0x0FF);
-    unsigned char L2 = ((dataSize >> 8) & 0x0FF);
-
-
-    packet[0] = DATA_PACKET;
-    packet[1] = L2;
-    packet[2] = L1;
-
-    for (int i = 0; i<dataSize; i++){
-        packet[i+3] = data[i];
-    }
-
-
-    return 3 + dataSize;
-
-}
 
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename) {
@@ -140,36 +80,42 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     if (llSend(packet, packetSize) < 0) {
         printf("Error sending START packet\n");
-    } else {
-        printf("START packet sent successfully!\n");
 
-        // Read first fragment of the file
-        unsigned char data[MAX_PAYLOAD_SIZE - 3];
+        fclose(file);
+        llCloseTx();
+        return;
+    }
 
-        size_t bytesRead = fread(data, 1, sizeof(data), file);
+    printf("START packet sent successfully!\n");
 
-        if (ferror(file)) {
-            perror("Error reading file");
-        } else if (bytesRead > 0) {
+    // Buffers for DATA packets
+    unsigned char data[MAX_PAYLOAD_SIZE - 3];
+    unsigned char dataPacket[MAX_PAYLOAD_SIZE];
 
-            printf("Read %zu bytes from file\n", bytesRead);
+    size_t bytesRead;
 
-            // Build DATA packet
-            unsigned char dataPacket[MAX_PAYLOAD_SIZE];
+    // Read and send the entire file
+    while ((bytesRead = fread(data, 1, sizeof(data), file)) > 0) {
 
-            int dataPacketSize = buildDataPacket(
-                dataPacket,
-                data,
-                (long)bytesRead
-            );
+        // Build DATA packet
+        int dataPacketSize = buildDataPacket(
+            dataPacket,
+            data,
+            (long)bytesRead
+        );
 
-            // Send DATA packet
-            if (llSend(dataPacket, dataPacketSize) < 0) {
-                printf("Error sending DATA packet\n");
-            } else {
-                printf("DATA packet sent successfully!\n");
-            }
+        // Send DATA packet
+        if (llSend(dataPacket, dataPacketSize) < 0) {
+            printf("Error sending DATA packet\n");
+            break;
         }
+
+        printf("DATA packet sent successfully! (%zu bytes)\n", bytesRead);
+    }
+
+    // Check for file reading errors
+    if (ferror(file)) {
+        perror("Error reading file");
     }
 
     fclose(file);
@@ -191,44 +137,84 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         else if (packetSize > 0 && packet[0] == PACKET_START) {
 
         printf("START packet received successfully!\n");
-        printf("Packet size: %d bytes\n", packetSize);
 
-        // Receive DATA packet
-        int dataPacketSize = llReceive(packet);
+        // Validate START packet
+        if (packetSize < 4 ||
+            packet[1] != FILE_SIZE ||
+            packet[2] == 0 ||
+            packet[2] > sizeof(unsigned long) ||
+            packetSize < 3 + packet[2]) {
 
-        if (dataPacketSize < 3 || packet[0] != DATA_PACKET) {
-            printf("Error receiving DATA packet\n");
-        }
-        else {
+            printf("Invalid START packet\n");
 
-            // Get data size
-            int dataSize = 256 * packet[1] + packet[2];
+        } else {
 
-            if (dataSize != dataPacketSize - 3) {
-                printf("Invalid DATA packet size\n");
+            // Get file size from START packet
+            unsigned long fileSize = 0;
+
+            for (int i = 0; i < packet[2]; i++) {
+                fileSize = (fileSize << 8) | packet[3 + i];
             }
-            else {
 
-                // Open output file
-                FILE *file = fopen(filename, "wb");
+            printf("Expected file size: %lu bytes\n", fileSize);
 
-                if (file == NULL) {
-                    perror("Error creating file");
-                }
-                else {
+            // Open output file
+            FILE *file = fopen(filename, "wb");
 
-                    // Write received data
+            if (file == NULL) {
+                perror("Error creating file");
+            } else {
+
+                unsigned long totalReceived = 0;
+                int error = 0;
+
+                // Receive DATA packets until the file is complete
+                while (totalReceived < fileSize) {
+
+                    int dataPacketSize = llReceive(packet);
+
+                    if (dataPacketSize < 3 || packet[0] != DATA_PACKET) {
+                        printf("Error receiving DATA packet\n");
+                        error = 1;
+                        break;
+                    }
+
+                    // Get the number of data bytes
+                    int dataSize = 256 * packet[1] + packet[2];
+
+                    // Validate packet size
+                    if (dataSize <= 0 ||
+                        dataSize != dataPacketSize - 3 ||
+                        (unsigned long)dataSize > fileSize - totalReceived) {
+
+                        printf("Invalid DATA packet size\n");
+                        error = 1;
+                        break;
+                    }
+
+                    // Write the received fragment
                     size_t written = fwrite(packet + 3, 1, dataSize, file);
 
                     if (written != (size_t)dataSize) {
                         printf("Error writing file\n");
-                    }
-                    else {
-                        printf("DATA packet received successfully!\n");
-                        printf("%d bytes written to file\n", dataSize);
+                        error = 1;
+                        break;
                     }
 
-                    fclose(file);
+                    totalReceived += dataSize;
+
+                    printf("Received %d bytes (Total: %lu/%lu)\n",
+                        dataSize, totalReceived, fileSize);
+                }
+
+                if (fclose(file) != 0) {
+                    perror("Error closing output file");
+                    error = 1;
+                }
+
+                if (!error) {
+                    printf("File received successfully!\n");
+                    printf("Total bytes received: %lu\n", totalReceived);
                 }
             }
         }

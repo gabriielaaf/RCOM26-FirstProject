@@ -15,7 +15,7 @@
 
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
-#define BUF_SIZE 256
+#define BUF_SIZE MAX_PAYLOAD_SIZE
 
 
 static unsigned char expectedNs = 0;
