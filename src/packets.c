@@ -13,8 +13,7 @@ int byteSize(unsigned long num) {
 
     int numBytes = sizeof(unsigned long) - 1;
 
-    while (numBytes > 0 &&
-           ((num >> (numBytes * 8)) & 0xFF) == 0) {
+    while (numBytes > 0 && ((num >> (numBytes * 8)) & 0xFF) == 0) {
         numBytes--;
     }
 

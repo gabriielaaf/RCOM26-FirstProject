@@ -324,6 +324,8 @@ int llSend(const unsigned char *buf, int bufSize) {
     SupervisionState state = START;
     unsigned char control = 0;
 
+    int rejected = FALSE;
+
     while (isAlarmEnabled()) {
       int result = readSupervisionFrame(0x03, &control, &state);
 
@@ -340,12 +342,18 @@ int llSend(const unsigned char *buf, int bufSize) {
         }
 
         if (control == reject) {
+          printf("REJ received! Retransmitting frame...\n");
+          rejected = TRUE;
           stopAlarm();
           break;
         }
 
         state = START;
       }
+    }
+
+    if (!rejected) {
+      printf("Timeout waiting for ACK of frame %d!\n", txNs);
     }
 
     stopAlarm();
@@ -373,6 +381,9 @@ int llReceive(unsigned char *packet) {
     unsigned char recievedNs = ((control >> 7) & 1);
 
     if (recievedNs != expectedNs) {
+      
+      printf("Duplicate frame detected! Ns = %d\n", recievedNs);
+      
       unsigned char rr = (expectedNs == 0 ? RR0 : RR1);
 
       if (sendSupervisionFrame(0x03, rr) <= 0)
