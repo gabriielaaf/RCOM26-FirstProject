@@ -51,6 +51,12 @@ static int sendSupervisionFrame(unsigned char address, unsigned char control) {
   if (bytes != 5)
     return -1;
 
+  if (control == RR0 || control == RR1 ||
+    control == REJ0 || control == REJ1) {
+
+    countRxAckBytes(bytes);
+  }
+
   printf("%d bytes written to serial port\n", bytes);
 
   return bytes;
@@ -328,6 +334,7 @@ int llSend(const unsigned char *buf, int bufSize) {
       return -1;
 
     countTxFrame();
+    countTxBytes(bytes);
 
     // Count retransmissions
 
@@ -566,7 +573,7 @@ int llCloseRx() {
         if (control == UA) {
           stopAlarm();
           printRxStatistics();
-          
+
           return closeSerialPort();
         }
 

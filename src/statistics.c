@@ -18,6 +18,9 @@ static struct timespec txStartTime;
 static double txElapsedTime = 0.0;
 static long txFileSize = 0;
 
+static unsigned long long txBytes = 0;
+static unsigned long long rxAckBytes = 0;
+
 void resetTxStatistics(void) {
     txFrames = 0;
     txRetransmissions = 0;
@@ -25,6 +28,8 @@ void resetTxStatistics(void) {
     txRejs = 0;
     txElapsedTime = 0.0;
     txFileSize = 0;
+    txBytes = 0;
+    rxAckBytes = 0;
 }
 
 void countTxFrame(void) {
@@ -59,6 +64,14 @@ void printTxStatistics(void) {
         printf("Useful throughput: %.2f bit/s\n", throughput);
     }
 
+    printf("Information bytes transmitted: %llu\n", txBytes);
+
+    if (txBytes > 0 && txFileSize > 0) {
+        double efficiency = (txFileSize * 100.0) / txBytes;
+
+        printf("Forward-channel efficiency: %.2f%%\n", efficiency);
+    }
+
     printf("===================================\n\n");
 }
 
@@ -85,6 +98,7 @@ void printRxStatistics(void) {
     printf("Information frames accepted: %u\n", rxFrames);
     printf("Duplicate frames: %u\n", rxDuplicates);
     printf("BCC2 errors: %u\n", rxErrors);
+    printf("Acknowledgement bytes transmitted: %llu\n", rxAckBytes);
     printf("================================\n\n");
 }
 
@@ -102,4 +116,12 @@ void stopTxTimer(long fileSize) {
         (endTime.tv_nsec - txStartTime.tv_nsec) / 1000000000.0;
 
     txFileSize = fileSize;
+}
+
+void countTxBytes(int bytes) {
+    txBytes += bytes;
+}
+
+void countRxAckBytes(int bytes) {
+    rxAckBytes += bytes;
 }

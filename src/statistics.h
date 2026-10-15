@@ -27,4 +27,9 @@ void printRxStatistics(void);
 void startTxTimer(void);
 void stopTxTimer(long fileSize);
 
+// Transmission byte statistics
+
+void countTxBytes(int bytes);
+void countRxAckBytes(int bytes);
+
 #endif
