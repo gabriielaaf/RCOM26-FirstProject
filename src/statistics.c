@@ -2,13 +2,15 @@
 
 #include <stdio.h>
 
-// Transmission statistics
 static unsigned int txFrames = 0;
 static unsigned int txRetransmissions = 0;
 static unsigned int txTimeouts = 0;
 static unsigned int txRejs = 0;
 
-// Initialize statistics
+static unsigned int rxFrames = 0;
+static unsigned int rxDuplicates = 0;
+static unsigned int rxErrors = 0;
+
 void resetTxStatistics(void) {
     txFrames = 0;
     txRetransmissions = 0;
@@ -16,27 +18,22 @@ void resetTxStatistics(void) {
     txRejs = 0;
 }
 
-// Count transmitted information frames
 void countTxFrame(void) {
     txFrames++;
 }
 
-// Count retransmissions
 void countTxRetransmission(void) {
     txRetransmissions++;
 }
 
-// Count timeouts
 void countTxTimeout(void) {
     txTimeouts++;
 }
 
-// Count received REJ frames
 void countTxRej(void) {
     txRejs++;
 }
 
-// Display statistics
 void printTxStatistics(void) {
 
     printf("\n===== TRANSMISSION STATISTICS =====\n");
@@ -47,4 +44,30 @@ void printTxStatistics(void) {
     printf("REJ received: %u\n", txRejs);
 
     printf("===================================\n\n");
+}
+
+void resetRxStatistics(void) {
+    rxFrames = 0;
+    rxDuplicates = 0;
+    rxErrors = 0;
+}
+
+void countRxFrame(void) {
+    rxFrames++;
+}
+
+void countRxDuplicate(void) {
+    rxDuplicates++;
+}
+
+void countRxError(void) {
+    rxErrors++;
+}
+
+void printRxStatistics(void) {
+    printf("\n===== RECEPTION STATISTICS =====\n");
+    printf("Information frames accepted: %u\n", rxFrames);
+    printf("Duplicate frames: %u\n", rxDuplicates);
+    printf("BCC2 errors: %u\n", rxErrors);
+    printf("================================\n\n");
 }

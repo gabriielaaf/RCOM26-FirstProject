@@ -1,16 +1,25 @@
 #ifndef STATISTICS_H
 #define STATISTICS_H
 
-// Initialize transmission statistics
+// Transmiter statistics
+
 void resetTxStatistics(void);
 
-// Update transmission statistics
 void countTxFrame(void);
 void countTxRetransmission(void);
 void countTxTimeout(void);
 void countTxRej(void);
 
-// Display transmission statistics
 void printTxStatistics(void);
+
+// Receiver statistics
+
+void resetRxStatistics(void);
+
+void countRxFrame(void);
+void countRxDuplicate(void);
+void countRxError(void);
+
+void printRxStatistics(void);
 
 #endif

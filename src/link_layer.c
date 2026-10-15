@@ -278,6 +278,8 @@ int llOpenRx(LinkLayer llParameters) {
   rxRetransmissions = llParameters.nRetransmissions;
   rxTimeout = llParameters.timeout;
 
+  resetRxStatistics();
+
   return 0;
 }
 
@@ -398,6 +400,8 @@ int llReceive(unsigned char *packet) {
     unsigned char recievedNs = ((control >> 7) & 1);
 
     if (recievedNs != expectedNs) {
+
+      countRxDuplicate();
       
       printf("Duplicate frame detected! Ns = %d\n", recievedNs);
       
@@ -426,6 +430,9 @@ int llReceive(unsigned char *packet) {
       calculateBCC2 ^= deStuffed[i];
 
     if (calculateBCC2 != deStuffed[deStuffedSize - 1]) {
+      
+      countRxError();
+
       if (sendSupervisionFrame(0x03, rej) <= 0)
         return -1;
 
@@ -436,6 +443,8 @@ int llReceive(unsigned char *packet) {
 
     for (int i = 0; i < packetSize; i++)
       packet[i] = deStuffed[i];
+
+    countRxFrame();
 
     expectedNs ^= 1;
 
@@ -556,6 +565,8 @@ int llCloseRx() {
 
         if (control == UA) {
           stopAlarm();
+          printRxStatistics();
+          
           return closeSerialPort();
         }
 
