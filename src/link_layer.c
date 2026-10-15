@@ -8,10 +8,12 @@
 #include "control_values.h"
 #include "serial_port.h"
 #include "state.h"
+#include "statistics.h"
 #include <errno.h>
 
 #include <stdio.h>
 #include <unistd.h>
+
 
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
@@ -235,6 +237,9 @@ int llOpenTx(LinkLayer llParameters) {
   txRetransmissions = llParameters.nRetransmissions;
   txNs = 0;
 
+  // Reset transmission statistics
+  resetTxStatistics();
+
   return 0;
 }
 
@@ -320,6 +325,13 @@ int llSend(const unsigned char *buf, int bufSize) {
     if (bytes != frameSize)
       return -1;
 
+    countTxFrame();
+
+    // Count retransmissions
+
+    if (attempt > 0)
+      countTxRetransmission();
+
     startAlarm(txTimeout);
     SupervisionState state = START;
     unsigned char control = 0;
@@ -342,6 +354,8 @@ int llSend(const unsigned char *buf, int bufSize) {
         }
 
         if (control == reject) {
+          countTxRej();
+
           printf("REJ received! Retransmitting frame...\n");
           rejected = TRUE;
           stopAlarm();
@@ -353,6 +367,9 @@ int llSend(const unsigned char *buf, int bufSize) {
     }
 
     if (!rejected) {
+
+      countTxTimeout();
+
       printf("Timeout waiting for ACK of frame %d!\n", txNs);
     }
 
@@ -490,6 +507,8 @@ int llCloseTx() {
     closeSerialPort();
     return -1;
   }
+
+  printTxStatistics();
 
   return closeSerialPort();
 }
