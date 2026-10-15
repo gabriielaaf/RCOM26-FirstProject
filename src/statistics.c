@@ -1,6 +1,9 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "statistics.h"
 
 #include <stdio.h>
+#include <time.h>
 
 static unsigned int txFrames = 0;
 static unsigned int txRetransmissions = 0;
@@ -11,11 +14,17 @@ static unsigned int rxFrames = 0;
 static unsigned int rxDuplicates = 0;
 static unsigned int rxErrors = 0;
 
+static struct timespec txStartTime;
+static double txElapsedTime = 0.0;
+static long txFileSize = 0;
+
 void resetTxStatistics(void) {
     txFrames = 0;
     txRetransmissions = 0;
     txTimeouts = 0;
     txRejs = 0;
+    txElapsedTime = 0.0;
+    txFileSize = 0;
 }
 
 void countTxFrame(void) {
@@ -42,6 +51,13 @@ void printTxStatistics(void) {
     printf("Retransmissions: %u\n", txRetransmissions);
     printf("Timeouts: %u\n", txTimeouts);
     printf("REJ received: %u\n", txRejs);
+
+    if (txElapsedTime > 0.0) {
+        double throughput = (txFileSize * 8.0) / txElapsedTime;
+
+        printf("Transfer time: %.3f s\n", txElapsedTime);
+        printf("Useful throughput: %.2f bit/s\n", throughput);
+    }
 
     printf("===================================\n\n");
 }
@@ -70,4 +86,20 @@ void printRxStatistics(void) {
     printf("Duplicate frames: %u\n", rxDuplicates);
     printf("BCC2 errors: %u\n", rxErrors);
     printf("================================\n\n");
+}
+
+void startTxTimer(void) {
+    clock_gettime(CLOCK_MONOTONIC, &txStartTime);
+}
+
+void stopTxTimer(long fileSize) {
+    struct timespec endTime;
+
+    clock_gettime(CLOCK_MONOTONIC, &endTime);
+
+    txElapsedTime =
+        (endTime.tv_sec - txStartTime.tv_sec) +
+        (endTime.tv_nsec - txStartTime.tv_nsec) / 1000000000.0;
+
+    txFileSize = fileSize;
 }

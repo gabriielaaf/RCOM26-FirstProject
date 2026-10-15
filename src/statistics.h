@@ -22,4 +22,9 @@ void countRxError(void);
 
 void printRxStatistics(void);
 
+// Transfer time
+
+void startTxTimer(void);
+void stopTxTimer(long fileSize);
+
 #endif

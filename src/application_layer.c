@@ -7,6 +7,7 @@
 
 #include "packets.h"
 #include "packet_values.h"
+#include "statistics.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -76,6 +77,9 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         return;
     }
 
+    // Start measuring transfer time
+    startTxTimer();
+
     // Send START packet
 
     if (llSend(packet, packetSize) < 0) {
@@ -134,6 +138,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             printf("Error sending END packet\n");
         } else {
             printf("END packet sent successfully!\n");
+
+            stopTxTimer(fileSize);
         }
 
     } else {
