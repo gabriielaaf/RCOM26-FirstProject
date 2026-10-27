@@ -123,6 +123,17 @@ static int readInformationFrame(unsigned char *frame, int maxSize,
       frame[frameSize++] = byte;
     }
 
+
+    if (state == I_SUPERVISION_STOP) {
+
+      if (*control == DISC)
+        return -2;
+
+      // Ignore other supervision frames
+      state = I_START;
+      frameSize = 0;
+    }
+
     if (state == I_STOP)
       return frameSize;
   }
@@ -400,6 +411,8 @@ int llReceive(unsigned char *packet) {
 
   while (1) {
     int frameSize = readInformationFrame(frame, sizeof(frame), &control);
+
+    if (frameSize == -2) return -2;
 
     if (frameSize < 0)
       return -1;

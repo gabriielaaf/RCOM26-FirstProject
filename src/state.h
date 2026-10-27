@@ -19,17 +19,18 @@ typedef enum {
   I_BCC_OK,
   I_DATA_RCV,
   I_STOP,
+  I_SUPERVISION_STOP,
   I_INVALID
 } InformationState;
 
 SupervisionState nextSupervisionState(SupervisionState currentState,
-                                      unsigned char byte,
-                                      unsigned char expectedAddress,
-                                      unsigned char *control);
+                                     unsigned char byte,
+                                     unsigned char expectedAddress,
+                                     unsigned char *control);
 
 InformationState nextInformationState(InformationState currentState,
-                                      unsigned char byte,
-                                      unsigned char expectedAddress,
-                                      unsigned char *control);
+                                     unsigned char byte,
+                                     unsigned char expectedAddress,
+                                     unsigned char *control);
 
 #endif

@@ -5,8 +5,8 @@
 #include "application_layer.h"
 #include "link_layer.h"
 
-#include "packets.h"
 #include "packet_values.h"
+#include "packets.h"
 #include "statistics.h"
 
 #include <stdio.h>
@@ -23,29 +23,29 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
   strcpy(llParameters.serialPort, serialPort);
 
   if (strcmp(role, "tx") == 0) {
-    
+
     // Open the file
 
     FILE *file = fopen(filename, "rb");
 
     if (file == NULL) {
-        perror("Error opening file");
-        return;
+      perror("Error opening file");
+      return;
     }
 
     // Get file size
     if (fseek(file, 0, SEEK_END) != 0) {
-        perror("fseek");
-        fclose(file);
-        return;
+      perror("fseek");
+      fclose(file);
+      return;
     }
 
     long fileSize = ftell(file);
 
     if (fileSize < 0) {
-        perror("ftell");
-        fclose(file);
-        return;
+      perror("ftell");
+      fclose(file);
+      return;
     }
 
     rewind(file);
@@ -54,27 +54,23 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     // Filename length must fit in one byte
     if (strlen(filename) > 255) {
-        printf("Filename too long\n");
-        fclose(file);
-        return;
+      printf("Filename too long\n");
+      fclose(file);
+      return;
     }
 
     // Build START packet
 
     unsigned char packet[MAX_PAYLOAD_SIZE];
 
-    int packetSize = buildControlPacket(
-        packet,
-        PACKET_START,
-        filename,
-        fileSize
-    );
+    int packetSize =
+        buildControlPacket(packet, PACKET_START, filename, fileSize);
 
     // Open connection
 
     if (llOpenTx(llParameters) < 0) {
-        fclose(file);
-        return;
+      fclose(file);
+      return;
     }
 
     // Start measuring transfer time
@@ -83,11 +79,11 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     // Send START packet
 
     if (llSend(packet, packetSize) < 0) {
-        printf("Error sending START packet\n");
+      printf("Error sending START packet\n");
 
-        fclose(file);
-        llCloseTx();
-        return;
+      fclose(file);
+      llCloseTx();
+      return;
     }
 
     printf("START packet sent successfully!\n");
@@ -102,48 +98,44 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     // Read and send the entire file
     while ((bytesRead = fread(data, 1, sizeof(data), file)) > 0) {
 
-        // Build DATA packet
-        int dataPacketSize = buildDataPacket(
-            dataPacket,
-            data,
-            (long)bytesRead
-        );
+      // Build DATA packet
+      int dataPacketSize = buildDataPacket(dataPacket, data, (long)bytesRead);
 
-        // Send DATA packet
-        if (llSend(dataPacket, dataPacketSize) < 0) {
-            printf("Error sending DATA packet\n");
-            break;
-        }
+      // Send DATA packet
+      if (llSend(dataPacket, dataPacketSize) < 0) {
+        printf("Error sending DATA packet\n");
+        break;
+      }
 
-        totalSent += bytesRead;
+      totalSent += bytesRead;
 
-        printf("DATA packet sent successfully! (%zu bytes)\n", bytesRead);
+      printf("DATA packet sent successfully! (%zu bytes)\n", bytesRead);
     }
 
     // Check for file reading errors
     if (ferror(file)) {
-        perror("Error reading file");
+      perror("Error reading file");
     }
 
     printf("Total bytes sent: %zu\n", totalSent);
 
     // Send END packet only if the entire file was sent
-    
+
     if (!ferror(file) && totalSent == (size_t)fileSize) {
 
-        // Reuse the START packet, changing only its control field
-        packet[0] = PACKET_END;
+      // Reuse the START packet, changing only its control field
+      packet[0] = PACKET_END;
 
-        if (llSend(packet, packetSize) < 0) {
-            printf("Error sending END packet\n");
-        } else {
-            printf("END packet sent successfully!\n");
+      if (llSend(packet, packetSize) < 0) {
+        printf("Error sending END packet\n");
+      } else {
+        printf("END packet sent successfully!\n");
 
-            stopTxTimer(fileSize);
-        }
+        stopTxTimer(fileSize);
+      }
 
     } else {
-        printf("Transfer incomplete: END packet not sent\n");
+      printf("Transfer incomplete: END packet not sent\n");
     }
 
     fclose(file);
@@ -151,6 +143,10 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     llCloseTx();
 
   } else if (strcmp(role, "rx") == 0) {
+
+    int transferFailed = 0;
+    unsigned long receivedBytes = 0;
+    unsigned long expectedBytes = 0;
 
     if (llOpenRx(llParameters) < 0)
       return;
@@ -160,117 +156,138 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     int packetSize = llReceive(packet);
 
     if (packetSize < 0) {
-        printf("Error receiving packet\n");
-    }
-        else if (packetSize > 0 && packet[0] == PACKET_START) {
+      printf("Error receiving packet\n");
+    } else if (packetSize > 0 && packet[0] == PACKET_START) {
 
-        printf("START packet received successfully!\n");
+      printf("START packet received successfully!\n");
 
-        // Validate START packet
-        if (packetSize < 4 ||
-            packet[1] != FILE_SIZE ||
-            packet[2] == 0 ||
-            packet[2] > sizeof(unsigned long) ||
-            packetSize < 3 + packet[2]) {
+      // Validate START packet
+      if (packetSize < 4 || packet[1] != FILE_SIZE || packet[2] == 0 ||
+          packet[2] > sizeof(unsigned long) || packetSize < 3 + packet[2]) {
 
-            printf("Invalid START packet\n");
+        printf("Invalid START packet\n");
 
+      } else {
+
+        // Save START packet to compare with END
+        unsigned char startPacket[MAX_PAYLOAD_SIZE];
+
+        memcpy(startPacket, packet, packetSize);
+
+        // Get file size from START packet
+        unsigned long fileSize = 0;
+
+        for (int i = 0; i < packet[2]; i++) {
+          fileSize = (fileSize << 8) | packet[3 + i];
+        }
+
+        printf("Expected file size: %lu bytes\n", fileSize);
+
+        // Open output file
+        FILE *file = fopen(filename, "wb");
+
+        if (file == NULL) {
+          perror("Error creating file");
         } else {
 
-            // Save START packet to compare with END
-            unsigned char startPacket[MAX_PAYLOAD_SIZE];
+          unsigned long totalReceived = 0;
+          int error = 0;
 
-            memcpy(startPacket, packet, packetSize);
+          // Receive DATA packets until the file is complete
+          while (totalReceived < fileSize) {
 
-            // Get file size from START packet
-            unsigned long fileSize = 0;
+            int dataPacketSize = llReceive(packet);
 
-            for (int i = 0; i < packet[2]; i++) {
-                fileSize = (fileSize << 8) | packet[3 + i];
+            if (dataPacketSize == -2) {
+              error = 1;
+              break;
             }
 
-            printf("Expected file size: %lu bytes\n", fileSize);
+            if (dataPacketSize < 3 || packet[0] != DATA_PACKET) {
+              printf("Error receiving DATA packet\n");
+              error = 1;
+              break;
+            }
 
-            // Open output file
-            FILE *file = fopen(filename, "wb");
+            // Get the number of data bytes
+            int dataSize = 256 * packet[1] + packet[2];
 
-            if (file == NULL) {
-                perror("Error creating file");
+            // Validate packet size
+            if (dataSize <= 0 || dataSize != dataPacketSize - 3 ||
+                (unsigned long)dataSize > fileSize - totalReceived) {
+
+              printf("Invalid DATA packet size\n");
+              error = 1;
+              break;
+            }
+
+            // Write the received fragment
+            size_t written = fwrite(packet + 3, 1, dataSize, file);
+
+            if (written != (size_t)dataSize) {
+              printf("Error writing file\n");
+              error = 1;
+              break;
+            }
+
+            totalReceived += dataSize;
+
+            printf("Received %d bytes (Total: %lu/%lu)\n", dataSize,
+                   totalReceived, fileSize);
+          }
+
+          if (fclose(file) != 0) {
+            perror("Error closing output file");
+            error = 1;
+          }
+
+          if (!error) {
+
+            int endPacketSize = llReceive(packet);
+
+            if (endPacketSize == -2) {
+              printf("Transfer interrupted: DISC received instead of END\n");
+              error = 1;
+            } else if (endPacketSize != packetSize || endPacketSize < 1 ||
+                       packet[0] != PACKET_END ||
+                       memcmp(packet + 1, startPacket + 1, packetSize - 1) !=
+                           0) {
+
+              printf("Invalid or missing END packet\n");
+              error = 1;
+
             } else {
-
-                unsigned long totalReceived = 0;
-                int error = 0;
-
-                // Receive DATA packets until the file is complete
-                while (totalReceived < fileSize) {
-
-                    int dataPacketSize = llReceive(packet);
-
-                    if (dataPacketSize < 3 || packet[0] != DATA_PACKET) {
-                        printf("Error receiving DATA packet\n");
-                        error = 1;
-                        break;
-                    }
-
-                    // Get the number of data bytes
-                    int dataSize = 256 * packet[1] + packet[2];
-
-                    // Validate packet size
-                    if (dataSize <= 0 ||
-                        dataSize != dataPacketSize - 3 ||
-                        (unsigned long)dataSize > fileSize - totalReceived) {
-
-                        printf("Invalid DATA packet size\n");
-                        error = 1;
-                        break;
-                    }
-
-                    // Write the received fragment
-                    size_t written = fwrite(packet + 3, 1, dataSize, file);
-
-                    if (written != (size_t)dataSize) {
-                        printf("Error writing file\n");
-                        error = 1;
-                        break;
-                    }
-
-                    totalReceived += dataSize;
-
-                    printf("Received %d bytes (Total: %lu/%lu)\n",
-                        dataSize, totalReceived, fileSize);
-                }
-
-                if (fclose(file) != 0) {
-                    perror("Error closing output file");
-                    error = 1;
-                }
-
-                if (!error) {
-
-                    int endPacketSize = llReceive(packet);
-
-                    if (endPacketSize != packetSize ||
-                        endPacketSize < 1 ||
-                        packet[0] != PACKET_END ||
-                        memcmp(packet + 1, startPacket + 1, packetSize - 1) != 0) {
-
-                        printf("Invalid or missing END packet\n");
-                        error = 1;
-
-                    } else {
-                        printf("END packet received successfully!\n");
-                        printf("File received successfully!\n");
-                        printf("Total bytes received: %lu\n", totalReceived);
-                    }
-                }
+              printf("END packet received successfully!\n");
+              printf("File received successfully!\n");
+              printf("Total bytes received: %lu\n", totalReceived);
             }
+          }
+          if (error) {
+
+            transferFailed = 1;
+            receivedBytes = totalReceived;
+            expectedBytes = fileSize;
+
+            if (remove(filename) == 0)
+              printf("Incomplete file deleted\n");
+            else
+              perror("Error deleting incomplete file");
+          }
         }
-    }
-    else {
-        printf("Unexpected packet received\n");
+      }
+    } else {
+      printf("Unexpected packet received\n");
     }
 
     llCloseRx();
+
+    if (transferFailed) {
+      printf("\n==========================================\n");
+      printf("          FILE TRANSFER FAILED\n");
+      printf("==========================================\n");
+      printf("Received: %lu / %lu bytes\n", receivedBytes, expectedBytes);
+      printf("==========================================\n");
+    }
 
   } else {
 

@@ -1,5 +1,6 @@
 #define FLAG 0x7E
 #include "state.h"
+#include "control_values.h"
 
 SupervisionState nextSupervisionState(SupervisionState currentState,
                                       unsigned char byte,
@@ -93,7 +94,9 @@ InformationState nextInformationState(InformationState currentState,
     if (byte == FLAG)
       return I_FLAG_RCV;
 
-    if (byte == 0x00 || byte == 0x80) {
+    if (byte == I0 || byte == I1 || byte == DISC || byte == SET || byte == UA ||
+        byte == RR0 || byte == RR1 || byte == REJ0 || byte == REJ1) {
+
       *control = byte;
       return I_C_RCV;
     }
@@ -112,10 +115,19 @@ InformationState nextInformationState(InformationState currentState,
 
   case I_BCC_OK:
 
-    if (byte == FLAG)
-      return I_FLAG_RCV;
+    if (*control == I0 || *control == I1) {
 
-    return I_DATA_RCV;
+      if (byte == FLAG)
+        return I_FLAG_RCV;
+
+      return I_DATA_RCV;
+    }
+
+    // Supervision frames end immediately after BCC1
+    if (byte == FLAG)
+      return I_SUPERVISION_STOP;
+
+    return I_START;
 
   case I_DATA_RCV:
 
