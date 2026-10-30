@@ -56,3 +56,17 @@ clean:
 	rm -f $(BIN)/main
 	rm -f $(BIN)/cable
 	rm -f $(RX_FILE)
+
+.PHONY: check-integrity
+
+.PHONY: check-integrity
+
+check-integrity:
+	@ORIGINAL="$(or $(ORIGINAL),original.jpg)"; \
+	RECEIVED="$(or $(RECEIVED),bin/received.jpg)"; \
+	if cmp -s "$$ORIGINAL" "$$RECEIVED"; then \
+		echo "FILE INTEGRITY: PASS"; \
+	else \
+		echo "FILE INTEGRITY: FAIL"; \
+		exit 1; \
+	fi
