@@ -64,8 +64,8 @@ clean:
 .PHONY: check-integrity
 
 check-integrity:
-	@ORIGINAL="$(or $(ORIGINAL),original.jpg)"; \
-	RECEIVED="$(or $(RECEIVED),received.jpg)"; \
+	@ORIGINAL="$(or $(ORIGINAL),penguin.gif)"; \
+	RECEIVED="$(or $(RECEIVED),penguin-received.gif)"; \
 	if [ ! -f "$$ORIGINAL" ]; then \
 		echo "ERROR: Original file not found: $$ORIGINAL"; \
 		exit 1; \

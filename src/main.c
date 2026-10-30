@@ -19,7 +19,9 @@
 //   $4: filename
 int main(int argc, char *argv[]) {
   if (argc == 4) {
-    argv[4] = (strcmp(argv[3], "tx") == 0) ? "original.jpg" : "received.jpg";
+    argv[4] =
+        (strcmp(argv[3], "tx") == 0) ? "penguin.gif" : "penguin-received.gif";
+    argc = 5;
   } else if (argc < 5) {
     printf("Usage: %s /dev/ttySxx baudrate tx|rx filename\n", argv[0]);
     exit(1);
