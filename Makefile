@@ -61,9 +61,19 @@ clean:
 
 .PHONY: check-integrity
 
+.PHONY: check-integrity
+
 check-integrity:
 	@ORIGINAL="$(or $(ORIGINAL),original.jpg)"; \
-	RECEIVED="$(or $(RECEIVED),bin/received.jpg)"; \
+	RECEIVED="$(or $(RECEIVED),received.jpg)"; \
+	if [ ! -f "$$ORIGINAL" ]; then \
+		echo "ERROR: Original file not found: $$ORIGINAL"; \
+		exit 1; \
+	fi; \
+	if [ ! -f "$$RECEIVED" ]; then \
+		echo "ERROR: Received file not found: $$RECEIVED"; \
+		exit 1; \
+	fi; \
 	if cmp -s "$$ORIGINAL" "$$RECEIVED"; then \
 		echo "FILE INTEGRITY: PASS"; \
 	else \
