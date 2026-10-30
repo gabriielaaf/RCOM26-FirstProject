@@ -1,7 +1,7 @@
 #ifndef STATISTICS_H
 #define STATISTICS_H
 
-// Transmiter statistics
+// Transmitter statistics
 
 void resetTxStatistics(void);
 
@@ -9,6 +9,8 @@ void countTxFrame(void);
 void countTxRetransmission(void);
 void countTxTimeout(void);
 void countTxRej(void);
+
+void setTxTransferStatus(int success);
 
 void printTxStatistics(void);
 
@@ -19,6 +21,9 @@ void resetRxStatistics(void);
 void countRxFrame(void);
 void countRxDuplicate(void);
 void countRxError(void);
+void countRxRej(void);
+
+void setRxTransferStatus(int success);
 
 void printRxStatistics(void);
 

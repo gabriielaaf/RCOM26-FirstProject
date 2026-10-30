@@ -55,6 +55,10 @@ static int sendSupervisionFrame(unsigned char address, unsigned char control) {
     control == REJ0 || control == REJ1) {
 
     countRxAckBytes(bytes);
+
+    if (control == REJ0 || control == REJ1) {
+      countRxRej();
+    }
   }
 
   printf("%d bytes written to serial port\n", bytes);

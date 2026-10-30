@@ -77,7 +77,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     startTxTimer();
 
     // Send START packet
-
     if (llSend(packet, packetSize) < 0) {
       printf("Error sending START packet\n");
 
@@ -132,6 +131,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         printf("END packet sent successfully!\n");
 
         stopTxTimer(fileSize);
+        setTxTransferStatus(1);
       }
 
     } else {
@@ -278,6 +278,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     } else {
       printf("Unexpected packet received\n");
     }
+
+    setRxTransferStatus(!transferFailed);
 
     llCloseRx();
 
